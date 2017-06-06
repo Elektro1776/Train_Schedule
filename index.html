@@ -14,11 +14,54 @@
     </script>
     <!-- Latest compiled and minified JavaScript -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-
+    <script src="./assets/js/moment.js"></script>
     <script src="https://www.gstatic.com/firebasejs/4.1.1/firebase.js"></script>
     <script src="./assets/js/app.js" charset="utf-8"></script>
   </head>
   <body>
-
+    <div class="container">
+      <div class="row">
+        <div class="jumbotron">
+          <p>Fuck Trains</p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-lg-12">
+          <table id="trainTable" class="table table-bordered">
+            <tbody>
+              <tr id="headers">
+                <th>Train Name</th>
+                <th>Frequency</th>
+                <th>Next Arrival</th>
+                <th>Minutes Away</th>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-lg-12">
+          <form id="trainFormEntry">
+            <div class="form-group">
+              <label for="">Train Name</label>
+              <input type="input" class="form-control" id="trainName" placeholder="Email">
+            </div>
+            <div class="form-group">
+              <label for="">Destination</label>
+              <input type="input" class="form-control" id="destination" placeholder="Destination">
+            </div>
+            <div class="form-group">
+              <label for="">Initial Train Time</label>
+              <input type="input" class="form-control" id="initialTrainTime" placeholder="HH:mm">
+            </div>
+            <div class="form-group">
+              <label for="">Frequency</label>
+              <input type="input" class="form-control" id="frequency" placeholder="10 min">
+            </div>
+            <button type="submit" class="btn btn-default">Submit</button>
+          </form>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

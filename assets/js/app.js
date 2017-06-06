@@ -10,20 +10,62 @@ $(document).ready(function() {
   };
   firebase.initializeApp(config);
 
-  var database = firebase.database();
+  const database = firebase.database();
+  const trains = database.ref('trains');
 
-  function writeUserData(userId, name, email, imageUrl) {
-  database.ref('users/' + userId).set({
-    username: name,
-    email: email,
-  });
+  function writeTrainData(data) {
+    const { trainName, destination, initialTrainTime, frequency } = data
+    const newPostRef = trains.push();
+    const initialStartTime = moment()
+    newPostRef.set({
+      trainName: trainName,
+      destination: destination,
+      frequency: frequency,
+      initialTrainTime: initialTrainTime,
+    });
 }
-writeUserData('1234', 'Austin', 'elektricwebdesign@gmail.com')
+function createNewTableRow(data) {
+const { trainName, destination, initialTrainTime, frequency } = data
+const trainData = `
+  <tr class="trainInfo">
+    <td id="${data.trainName}">${data.trainName}</td>
+    <td id="${data.destination}">${data.destination}</td>
+    <td id="${data.nextArrival}">${data.initialTrainTime}</td>
+    <td></td>
+  </tr>`
+ $('#trainTable tbody').append(trainData)
+}
+trains.on('value', function(snapshot) {
+  var data = snapshot.val();
+  snapshot.forEach(function(childSnapshot) {
+    var data = childSnapshot.val();
+    console.log(' WHAT IS OUR DATA', childSnapshot.val());
+    createNewTableRow(data);
 
+  })
+});
+// writeTrainData('1245', 'Austin', 'Denver, CO', '30min', '5:30pm')
 
+// NOTE: This is how we will push down new train timesssss
+ const data = {
+   trainName: 'Nello',
+   destination: 'CO',
+   nextArrival: '5:50pm',
+ }
 
+/////////////////////////////////////////////////////
 
-
+$('form').submit(function(e) {
+  e.preventDefault();
+  var $inputs = $('#trainFormEntry :input:not(:button)');
+  var values = {};
+  $inputs.each(function() {
+    var id = $(this)[0].id;
+    values[id] = $(this).val();
+  });
+  console.log(' WHAT ARE THE VALUES', values);
+  writeTrainData(values);
+});
 
 
 
