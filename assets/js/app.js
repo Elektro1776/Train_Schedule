@@ -62,6 +62,7 @@ $('form').submit(function(e) {
   $inputs.each(function() {
     var id = $(this)[0].id;
     values[id] = $(this).val();
+    $(this).val('');
   });
   console.log(' WHAT ARE THE VALUES', values);
   writeTrainData(values);
