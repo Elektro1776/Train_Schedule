@@ -9,29 +9,64 @@ $(document).ready(function() {
     messagingSenderId: "974739846874"
   };
   firebase.initializeApp(config);
-
+  var currentTime;
+  var timeToArrival;
   const database = firebase.database();
   const trains = database.ref('trains');
+  function calculateNextArrival(firstArrival, frequency){
+    let initialArrival = moment(firstArrival, ['HH:mm'])
+    let nextArrival = moment(initialArrival).add(frequency, 'm').format('hh:mm a')
+    console.log(' WHAT IS THE CURRENTTIME', frequency, initialArrival.format('hh:mm'), nextArrival);
+  }
+  function formatTime(time) {
+    var parsedTime = moment(time, ['hh:mm a']).format("hh:mm a");
+    return parsedTime;
+  }
+  timeToArrival = setInterval(function() {
+    console.log(' RUNNING INTERVAL@');
+    // calculateNextArrival(currentTime)
+    trains.once('value', function(snapshot) {
+      snapshot.forEach(function(childSnap) {
+        var train = childSnap.val();
+        let test = $('tbody').children().each(function(index,childEl) {
+          // console.log(' WHAT IS THE TEST', $(childEl).find('.trainName').attr('data-trainname'));
+          // var currentTrain = $(childEl).children();
+          let trainNames = $(childEl).find('.trainName').attr('data-trainname');
+          let initialArrival = moment(train.initialTrainTime, ['HH:mm']).format("HH:mm A")
+          if (train.trainName === trainNames) {
+            calculateNextArrival(initialArrival, train.frequency)
+            // console.log(' WAHT IS OUR CHIILD SNAP', train.frequency, );
 
+
+          }
+        })
+      })
+    })
+  }, 1000);
   function writeTrainData(data) {
     const { trainName, destination, initialTrainTime, frequency } = data
     const newPostRef = trains.push();
-    const initialStartTime = moment()
+    const initialStartTime = moment(initialTrainTime, ['hh:mm']).format("h:mm ");
+    console.log(' WHAT IS THE INITIAL START TIME', initialStartTime);
     newPostRef.set({
       trainName: trainName,
       destination: destination,
       frequency: frequency,
-      initialTrainTime: initialTrainTime,
+      initialTrainTime: initialStartTime,
     });
 }
+
 function createNewTableRow(data) {
 const { trainName, destination, initialTrainTime, frequency } = data
+console.log(' WHAT IS HAPPENING WITH THE DESTINATION', destination);
+let parsedTime = formatTime(initialTrainTime)
 const trainData = `
   <tr class="trainInfo">
-    <td id="${data.trainName}">${data.trainName}</td>
-    <td id="${data.destination}">${data.destination}</td>
-    <td id="${data.nextArrival}">${data.initialTrainTime}</td>
-    <td></td>
+    <td class="trainName" data-trainname="${data.trainName}">${data.trainName}</td>
+    <td class="destination">${data.destination}</td>
+    <td class="frequency">${data.frequency} min</td>
+    <td class="nextArrival">${parsedTime}</td>
+    <td class="minutesAway">${frequency}</td>
   </tr>`
  $('#trainTable tbody').append(trainData)
 }
@@ -39,21 +74,10 @@ trains.on('value', function(snapshot) {
   var data = snapshot.val();
   snapshot.forEach(function(childSnapshot) {
     var data = childSnapshot.val();
-    console.log(' WHAT IS OUR DATA', childSnapshot.val());
     createNewTableRow(data);
 
   })
 });
-// writeTrainData('1245', 'Austin', 'Denver, CO', '30min', '5:30pm')
-
-// NOTE: This is how we will push down new train timesssss
- const data = {
-   trainName: 'Nello',
-   destination: 'CO',
-   nextArrival: '5:50pm',
- }
-
-/////////////////////////////////////////////////////
 
 $('form').submit(function(e) {
   e.preventDefault();
@@ -64,7 +88,6 @@ $('form').submit(function(e) {
     values[id] = $(this).val();
     $(this).val('');
   });
-  console.log(' WHAT ARE THE VALUES', values);
   writeTrainData(values);
 });
 
