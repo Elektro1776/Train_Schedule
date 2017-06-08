@@ -13,41 +13,66 @@ $(document).ready(function() {
   var timeToArrival;
   const database = firebase.database();
   const trains = database.ref('trains');
-  function calculateNextArrival(firstArrival, frequency){
-    let initialArrival = moment(firstArrival, ['HH:mm'])
-    let nextArrival = moment(initialArrival).add(frequency, 'm').format('hh:mm a')
-    console.log(' WHAT IS THE CURRENTTIME', frequency, initialArrival.format('hh:mm'), nextArrival);
+
+  function calculateNextArrival(firstArrival, frequency, trainId){
+    const trainRef = trains + '/' + trainId;
+    let deleteTrain = function() {
+      trains.child(trainId).remove();
+    }
+    // console.log(' WHAT IS OUR TRAIN REFFFF', trainRef);
+    let initialArrival = moment(firstArrival, ['HH:mm '])
+    let nextArrival = moment(initialArrival).add(frequency, 'm')
+    let minAway = calculateMinAway(nextArrival, deleteTrain);
+    console.log(' WHAT IS THE NEXT ARRIVAL', minAway);
+
+    return minAway
+  }
+  function calculateMinAway(nextArrival, cb) {
+    let currentTime = moment();
+    let arrival = moment(nextArrival);
+    let timeToTrainArrival = currentTime.to(arrival);
+    let diff = currentTime.diff(arrival, 'minutes');
+    console.log(' WHAT IS THE TESTTTTTTTTT', diff);
+    // console.log(' WHAT IS THE CURRENT TIME', timeToTrainArrival, currentTime, arrival );
+    if (diff == 0) {
+      cb();
+      alert(' Train Has arrived');
+    }
+    return timeToTrainArrival;
+
   }
   function formatTime(time) {
     var parsedTime = moment(time, ['hh:mm a']).format("hh:mm a");
     return parsedTime;
   }
   timeToArrival = setInterval(function() {
-    console.log(' RUNNING INTERVAL@');
+    // console.log(' RUNNING INTERVAL@');
     // calculateNextArrival(currentTime)
     trains.once('value', function(snapshot) {
       snapshot.forEach(function(childSnap) {
         var train = childSnap.val();
+        let trainId = childSnap.key;
         let test = $('tbody').children().each(function(index,childEl) {
           // console.log(' WHAT IS THE TEST', $(childEl).find('.trainName').attr('data-trainname'));
           // var currentTrain = $(childEl).children();
           let trainNames = $(childEl).find('.trainName').attr('data-trainname');
-          let initialArrival = moment(train.initialTrainTime, ['HH:mm']).format("HH:mm A")
+          let nextArrivalTime = $(childEl).find('.minutesAway');
+          let initialArrival = moment(train.initialTrainTime, ['HH:mm']).format("HH:mm ")
           if (train.trainName === trainNames) {
-            calculateNextArrival(initialArrival, train.frequency)
-            // console.log(' WAHT IS OUR CHIILD SNAP', train.frequency, );
-
+            let nextTrainStops = calculateNextArrival(initialArrival, train.frequency, trainId)
+            console.log(' WAHT IS OUR CHIILD SNAP', nextTrainStops, );
+            $(nextArrivalTime).text(nextTrainStops)
 
           }
         })
       })
     })
-  }, 1000);
+  }, 5000);
   function writeTrainData(data) {
     const { trainName, destination, initialTrainTime, frequency } = data
     const newPostRef = trains.push();
-    const initialStartTime = moment(initialTrainTime, ['hh:mm']).format("h:mm ");
-    console.log(' WHAT IS THE INITIAL START TIME', initialStartTime);
+    const initialStartTime = moment(initialTrainTime, ['HH:mm']).format("HH:mm ");
+    // console.log(' WHAT IS THE INITIAL START TIME', initialStartTime);
     newPostRef.set({
       trainName: trainName,
       destination: destination,
@@ -58,8 +83,7 @@ $(document).ready(function() {
 
 function createNewTableRow(data) {
 const { trainName, destination, initialTrainTime, frequency } = data
-console.log(' WHAT IS HAPPENING WITH THE DESTINATION', destination);
-let parsedTime = formatTime(initialTrainTime)
+let parsedTime = formatTime(initialTrainTime);
 const trainData = `
   <tr class="trainInfo">
     <td class="trainName" data-trainname="${data.trainName}">${data.trainName}</td>
@@ -68,17 +92,32 @@ const trainData = `
     <td class="nextArrival">${parsedTime}</td>
     <td class="minutesAway">${frequency}</td>
   </tr>`
- $('#trainTable tbody').append(trainData)
+ return trainData;
 }
-trains.on('value', function(snapshot) {
-  var data = snapshot.val();
-  snapshot.forEach(function(childSnapshot) {
-    var data = childSnapshot.val();
-    createNewTableRow(data);
+
+// (function initializeTrainSchedule(){
+//   trains.once('value', function(snapshot) {
+//     // var data = snapshot.val();
+//     snapshot.forEach(function(childSnapshot) {
+//       var data = childSnapshot.val();
+//       let initialTable = createNewTableRow(data);
+//       $('#trainTable tbody').append(initialTable);
+//     });
+//   });
+// })();
+(function listenForTrainAdded() {
+  trains.on('child_added', function(snapshot) {
+    console.log(' DO WE GET A CHILD ADD FIRE ', snapshot.val());
+    let initialTable = createNewTableRow(snapshot.val());
+    $('#trainTable tbody').append(initialTable);
 
   })
-});
-
+})();
+(function listenForTrainRemoved() {
+  trains.on('child_removed', function(snapshot) {
+    console.log(' CHILD REMOVED FIRE!!!!', snapshot.val(), snapshot.key);
+  })
+})();
 $('form').submit(function(e) {
   e.preventDefault();
   var $inputs = $('#trainFormEntry :input:not(:button)');
