@@ -11,19 +11,21 @@ $(document).ready(function() {
   firebase.initializeApp(config);
   var currentTime;
   var timeToArrival;
-  const database = firebase.database();
-  const trains = database.ref('trains');
+  var database = firebase.database();
+  var trains = database.ref('trains');
 
   function calculateNextArrival(firstArrival, frequency, trainId){
     const trainRef = trains + '/' + trainId;
-    let deleteTrain = function() {
-      trains.child(trainId).remove();
-    }
-    // console.log(' WHAT IS OUR TRAIN REFFFF', trainRef);
     let initialArrival = moment(firstArrival, ['HH:mm '])
-    let nextArrival = moment(initialArrival).add(frequency, 'm')
-    let minAway = calculateMinAway(nextArrival, deleteTrain);
-    console.log(' WHAT IS THE NEXT ARRIVAL', minAway);
+    let nextArrival = initialArrival.add(frequency, 'minutes')
+    let updateTrainArrival = function() {
+      let initialTrainTime = moment(nextArrival).add(frequency, 'm').format("HH:mm");
+      console.log(' WHAT IS THE NEW INITIAL TIME ', trainId, );
+      trains.child(trainId).update({initialTrainTime});
+    }
+    // console.log(` OOUR NextArrival : ${nextArrival}` );
+    let minAway = calculateMinAway(nextArrival, updateTrainArrival);
+    // console.log(' WHAT IS OUR TRAIN REFFFF', trainRef);
 
     return minAway
   }
@@ -31,12 +33,14 @@ $(document).ready(function() {
     let currentTime = moment();
     let arrival = moment(nextArrival);
     let timeToTrainArrival = currentTime.to(arrival);
-    let diff = currentTime.diff(arrival, 'minutes');
-    console.log(' WHAT IS THE TESTTTTTTTTT', diff);
+    let diff = arrival.diff(currentTime);
+    // console.log(' WHAT IS OUR ARRIVAL', arrival, "WHAT IS OUR DIFF????", diff);
     // console.log(' WHAT IS THE CURRENT TIME', timeToTrainArrival, currentTime, arrival );
-    if (diff == 0) {
+    if (diff <= 0) {
+      // console.log("What is the arrival", arrival, );
+      // console.log(' WHAT IS THE NEXT ARRIVAL ', nextArrival);
       cb();
-      alert(' Train Has arrived');
+      // alert(' Train Has arrived');
     }
     return timeToTrainArrival;
 
@@ -48,26 +52,26 @@ $(document).ready(function() {
   timeToArrival = setInterval(function() {
     // console.log(' RUNNING INTERVAL@');
     // calculateNextArrival(currentTime)
+    console.log('What is the current Time ', moment().format());
     trains.once('value', function(snapshot) {
       snapshot.forEach(function(childSnap) {
         var train = childSnap.val();
         let trainId = childSnap.key;
         let test = $('tbody').children().each(function(index,childEl) {
-          // console.log(' WHAT IS THE TEST', $(childEl).find('.trainName').attr('data-trainname'));
           // var currentTrain = $(childEl).children();
           let trainNames = $(childEl).find('.trainName').attr('data-trainname');
           let nextArrivalTime = $(childEl).find('.minutesAway');
           let initialArrival = moment(train.initialTrainTime, ['HH:mm']).format("HH:mm ")
           if (train.trainName === trainNames) {
             let nextTrainStops = calculateNextArrival(initialArrival, train.frequency, trainId)
-            console.log(' WAHT IS OUR CHIILD SNAP', nextTrainStops, );
+            // console.log(' WAHT IS OUR CHIILD SNAP', nextTrainStops, );
             $(nextArrivalTime).text(nextTrainStops)
 
           }
         })
       })
     })
-  }, 5000);
+  }, 1000);
   function writeTrainData(data) {
     const { trainName, destination, initialTrainTime, frequency } = data
     const newPostRef = trains.push();
@@ -89,35 +93,44 @@ const trainData = `
     <td class="trainName" data-trainname="${data.trainName}">${data.trainName}</td>
     <td class="destination">${data.destination}</td>
     <td class="frequency">${data.frequency} min</td>
-    <td class="nextArrival">${parsedTime}</td>
+    <td class="nextArrival" data-train-nextArrival="${parsedTime}">${parsedTime}</td>
     <td class="minutesAway">${frequency}</td>
   </tr>`
  return trainData;
 }
 
-// (function initializeTrainSchedule(){
-//   trains.once('value', function(snapshot) {
-//     // var data = snapshot.val();
-//     snapshot.forEach(function(childSnapshot) {
-//       var data = childSnapshot.val();
-//       let initialTable = createNewTableRow(data);
-//       $('#trainTable tbody').append(initialTable);
-//     });
-//   });
-// })();
 (function listenForTrainAdded() {
   trains.on('child_added', function(snapshot) {
-    console.log(' DO WE GET A CHILD ADD FIRE ', snapshot.val());
     let initialTable = createNewTableRow(snapshot.val());
     $('#trainTable tbody').append(initialTable);
 
   })
 })();
-(function listenForTrainRemoved() {
-  trains.on('child_removed', function(snapshot) {
-    console.log(' CHILD REMOVED FIRE!!!!', snapshot.val(), snapshot.key);
-  })
+
+(function listenForTrainUpdated() {
+  trains.on('child_changed', function(snapshot) {
+    console.log(' CHILD Updated FIRE!!!!', snapshot.val(), snapshot.key);
+    let trainToUpdate = snapshot.val().trainName;
+    let unparsedNewArrival = snapshot.val().initialTrainTime;
+    let parsedNewArrival = unparsedNewArrival;
+    let formatedArrivalTime = formatTime(parsedNewArrival); //moment(newArrival).format('hh:mm A');
+    let trainInfoChildren = $('.trainInfo').children();
+    $.each(trainInfoChildren, function(index, value) {
+      let trainEl = $(value).attr('data-trainname');
+      let newArrivalTimeEl = $(value).attr('data-train-nextArrival');
+      if (trainEl === trainToUpdate) {
+        $(value).siblings().map((index,sibling) => {
+          if ($(sibling).hasClass('nextArrival')) {
+            $(sibling).text(formatedArrivalTime);
+            // console.log(' WHAT IS OUR THISSSSSSS', $(sibling));
+          }
+        })
+        console.log(' CAN WE GET OUR CHILDREN CHAINED ON EACH', $(value).siblings().hasClass('nextArrival'), formatedArrivalTime, parsedNewArrival, typeof snapshot.val().initialTrainTime);
+      }
+    })
+  });
 })();
+
 $('form').submit(function(e) {
   e.preventDefault();
   var $inputs = $('#trainFormEntry :input:not(:button)');
@@ -125,6 +138,7 @@ $('form').submit(function(e) {
   $inputs.each(function() {
     var id = $(this)[0].id;
     values[id] = $(this).val();
+
     $(this).val('');
   });
   writeTrainData(values);
